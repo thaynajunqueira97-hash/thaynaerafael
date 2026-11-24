@@ -1742,19 +1742,22 @@ header.hero .hero-flower-reference-sw { bottom:-10px !important; left:-9px !impo
 <p class="rsvp-copy">Será uma alegria ter você conosco. Para confirmar, basta digitar o nome do convidado.</p>
 <button aria-controls="rsvpFormPanel" aria-expanded="false" class="rsvp-open" id="rsvpOpen" type="button">CONFIRMAR PRESENÇA</button>
 <div class="rsvp-form-panel" hidden="" id="rsvpFormPanel">
-<form id="rsvpForm" novalidate="" method="POST" action="https://formsubmit.co/thaynajunqueira@outlook.com">
+<form id="rsvpForm" data-rsvp-version="20261124-direct-newtab" novalidate="" method="POST" target="_blank" action="https://formsubmit.co/thaynajunqueira@outlook.com">
 <label for="guestNames">Nome do convidado</label>
 <p class="rsvp-field-tip">Digite o nome do convidado.</p>
 <textarea id="guestNames" maxlength="1800" name="Nome do convidado" placeholder="Digite o nome do convidado." required="" rows="3" spellcheck="false"></textarea>
+<input name="_url" type="hidden" value="https://thaynajunqueira97-hash.github.io/thaynaerafael/convite-thayna-rafael.html"/>
 <input type="hidden" name="_subject" value="Confirmação de presença — Thayná e Rafael (19/12/2026)"/>
 <input type="hidden" name="_template" value="table"/>
 <input type="hidden" name="_captcha" value="false"/>
+
 <input type="hidden" name="Confirmação" value="Presença confirmada"/>
 <input type="hidden" name="Evento" value="Recepção de casamento — 19/12/2026, 19h"/>
-<button class="rsvp-send" type="submit">ENVIAR CONFIRMAÇÃO</button>
-<button class="rsvp-send" type="button" id="rsvpFallback" hidden style="margin-top:12px;">ENVIAR POR OUTRO MÉTODO</button>
+<button class="rsvp-send" type="submit">CONFIRMAR PRESENÇA</button>
+
 <p aria-live="polite" class="rsvp-status" id="rsvpStatus" role="status"></p>
 </form>
+
 </div>
 </div>
 </section>
@@ -2377,102 +2380,55 @@ document.addEventListener('keydown', (e) => {
   const form=document.getElementById('rsvpForm');
   const status=document.getElementById('rsvpStatus');
   const names=document.getElementById('guestNames');
-  if(open&&panel){open.addEventListener('click',()=>{const expand=panel.hidden;panel.hidden=!expand;open.setAttribute('aria-expanded',expand?'true':'false');if(expand)names.focus();});}
-  // As confirmações são enviadas ao e-mail dos noivos via FormSubmit.
-  // Antes de publicar: envie um teste e confirme a ativação recebida no Outlook.
-  const RSVP_ENDPOINT='https://formsubmit.co/ajax/thaynajunqueira@outlook.com';
-  const fallback=form?form.querySelector('#rsvpFallback'):null;
-  const sendButton=form?form.querySelector('button[type="submit"]'):null;
+  const button=form?form.querySelector('button[type="submit"]'):null;
 
-  function checkGuest(){
-    const raw=(names.value||'').trim();
-    if(!raw){status.textContent='Digite o nome do convidado para continuar.';names.focus();return null;}
-    if(/[\r\n,;]/.test(raw)){
-      status.textContent='Digite apenas o nome do convidado, sem adicionar outras pessoas.';
-      names.focus();return null;
-    }
-    const guest=raw.replace(/\s+/g,' ');
-    if(guest.length<2 || guest.length>120){
-      status.textContent='Confira se o nome foi preenchido corretamente.';names.focus();return null;
-    }
-    return guest;
+  if(open&&panel){
+    open.addEventListener('click',()=>{
+      const expand=panel.hidden;
+      panel.hidden=!expand;
+      open.setAttribute('aria-expanded',expand?'true':'false');
+      if(expand&&names)names.focus();
+    });
   }
 
-  // Alternativa sem AJAX. Disponível só se o servidor não responder.
-  // Abre a página oficial de envio em outra aba, mantendo o convite intacto.
-  if(fallback) fallback.addEventListener('click',()=>{
-    const guest=checkGuest();
-    if(!guest)return;
-    names.value=guest;
-    form.setAttribute('target','_blank');
-    form.submit();
-    form.removeAttribute('target');
-    status.textContent='O envio alternativo foi aberto em outra aba. Confira o resultado nessa aba.';
-  });
-
-  if(form)form.addEventListener('submit',async event=>{
-    event.preventDefault();
-    const guest=checkGuest();
-    if(!guest)return;
-    if(sendButton && sendButton.disabled)return;
-    if(fallback)fallback.hidden=true;
-
-    // FormSubmit depende de uma página publicada (http/https); o arquivo local é apenas prévia.
-    if(location.protocol==='file:'){
-      status.textContent='Esta é uma prévia aberta no computador. Para enviar de verdade, abra o convite pelo link publicado na internet.';
-      return;
-    }
-    if(!navigator.onLine){
-      status.textContent='Você está sem conexão. Conecte-se à internet e tente novamente.';
-      return;
-    }
-    if(sendButton){sendButton.disabled=true;sendButton.textContent='ENVIANDO...';}
-    status.textContent='Enviando confirmação...';
-
-    // Prazo máximo: a tela volta ao normal mesmo se a conexão ficar sem resposta.
-    const controller=new AbortController();
-    let timer;
-    try{
-      const request=fetch(RSVP_ENDPOINT,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
-        signal:controller.signal,
-        body:JSON.stringify({
-          '_subject':'Confirmação de presença — Thayná e Rafael (19/12/2026)',
-          '_template':'table',
-          '_captcha':'false',
-          '_honey':'',
-          'Nome do convidado':guest,
-          'Confirmação':'Presença confirmada',
-          'Evento':'Recepção de casamento — 19/12/2026, 19h'
-        })
-      }).then(async response=>{
-        if(!response.ok)throw new Error('Falha do serviço de confirmação');
-        const result=await response.json();
-        if(!(result && (result.success===true || result.success==='true'))){
-          throw new Error('Serviço não confirmou o recebimento');
-        }
-        return result;
-      });
-      await Promise.race([
-        request,
-        new Promise((_,reject)=>{
-          timer=setTimeout(()=>{
-            controller.abort();
-            reject(new Error('Tempo limite de envio atingido'));
-          },12000);
-        })
-      ]);
-      status.textContent='Sua confirmação foi enviada! Esperamos você!';
-      form.reset();
-    }catch(error){
-      status.textContent='Não foi possível confirmar o envio agora. Tente novamente ou use o envio alternativo abaixo.';
-      if(fallback)fallback.hidden=false;
-    }finally{
-      clearTimeout(timer);
-      if(sendButton){sendButton.disabled=false;sendButton.textContent='ENVIAR CONFIRMAÇÃO';}
-    }
-  });
+  // Envio direto para o FormSubmit em nova aba: mesmo método alternativo
+  // que foi confirmado como funcional, sem fetch/AJAX, timeout ou redirecionamento.
+  // A confirmação do recebimento é mostrada pelo próprio serviço na nova aba.
+  if(form&&names){
+    form.addEventListener('submit',event=>{
+      const raw=(names.value||'').trim();
+      if(!raw){
+        event.preventDefault();
+        status.textContent='Digite o nome do convidado para continuar.';
+        names.focus(); return;
+      }
+      if(/[\r\n,;]/.test(raw)){
+        event.preventDefault();
+        status.textContent='Digite apenas o nome do convidado, sem adicionar outras pessoas.';
+        names.focus(); return;
+      }
+      const guest=raw.replace(/\s+/g,' ');
+      if(guest.length<2||guest.length>120){
+        event.preventDefault();
+        status.textContent='Confira se o nome foi preenchido corretamente.';
+        names.focus(); return;
+      }
+      if(location.protocol==='file:'){
+        event.preventDefault();
+        status.textContent='Para confirmar presença, use o link oficial do convite.';
+        return;
+      }
+      if(!navigator.onLine){
+        event.preventDefault();
+        status.textContent='Sem conexão. Verifique a internet e tente novamente.';
+        return;
+      }
+      names.value=guest;
+      // O POST nativo segue normalmente para a nova aba (target=_blank).
+      // Não anunciamos sucesso sem resposta confirmada do FormSubmit.
+      status.textContent='O comprovante de envio abrirá em outra aba. Confira a mensagem de confirmação antes de fechar.';
+    });
+  }
 
 })();
 </script>
